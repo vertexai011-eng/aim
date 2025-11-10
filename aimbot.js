@@ -5,8 +5,10 @@
   // Configuration
   const CONFIG = {
     // Targeting settings
-    enemySelector: '.enemy-player',
-    friendlySelector: '.friendly-player', // Avoid targeting friends
+    // **IMPORTANT**: You may need to change this selector to match the game you are playing.
+    // Use your browser's developer tools to inspect the enemy elements and find the correct class name.
+    enemySelector: '.enemy',
+    friendlySelector: '.friendly', // Avoid targeting friends
     scanInterval: 16, // ~60fps for smoother operation
     aimOffset: { x: 0, y: -20 }, // Headshot offset (adjust as needed)
 
@@ -83,17 +85,32 @@
         // Visibility Check
         const elementAtTarget = document.elementFromPoint(targetPos.x, targetPos.y);
         if (elementAtTarget && (elementAtTarget === enemy || enemy.contains(elementAtTarget))) {
+          const health = getEnemyHealth(enemy);
           validTargets.push({
             element: enemy,
             position: targetPos,
             distance: distance,
-            rect: rect
+            rect: rect,
+            health: health
           });
         }
       }
     }
 
     return validTargets;
+  };
+
+  // Get enemy health (generic)
+  const getEnemyHealth = (enemyElement) => {
+    // **IMPORTANT**: You may need to change this selector to match the game you are playing.
+    // Use your browser's developer tools to inspect the enemy's health bar and find the correct class name or structure.
+    const healthBar = enemyElement.querySelector('.health-bar');
+    if (healthBar) {
+      // This assumes the health is represented by the width of the health bar.
+      // You may need to adjust this based on how the game displays health.
+      return parseFloat(healthBar.style.width);
+    }
+    return 100; // Default to 100% health if not found
   };
 
   // Predictive targeting based on movement history
@@ -130,12 +147,18 @@
 
     // Priority scoring system:
     // 1. Closest to crosshair
-    // 2. Within FOV center (bonus for being near center)
-    // 3. Recently targeted (sticky targeting)
+    // 2. Lowest health
+    // 3. Within FOV center (bonus for being near center)
+    // 4. Recently targeted (sticky targeting)
 
     return targets.reduce((best, current) => {
       // Base score by distance (lower is better)
       let currentScore = current.distance;
+
+      // Health-based bonus (lower health is better)
+      if (current.health < 100) {
+        currentScore *= (current.health / 100); // Scale score by health percentage
+      }
 
       // Bonus for being close to screen center
       const centerDistance = Vector.distance(center, current.position);
